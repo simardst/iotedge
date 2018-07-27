@@ -182,9 +182,28 @@ function Remove-SecurityDaemonResources {
     Remove-Item $LogKey -ErrorAction SilentlyContinue -ErrorVariable CmdErr
     Write-Verbose "$(if ($?) { "Deleted registry key '$LogKey'" } else { $CmdErr })"
 
+    # On Windows 10, Docker service doesn't drop a reference on iotedged.exe,
+    # preventing it from being deleted. Restarting docker services drops the reference.
+
+    $UseWindowsContainers = Test-UsingWindowsContainers
+    Stop-Service *docker*
+    Start-Sleep -s 7
+
     $EdgePath = "C:\ProgramData\iotedge"
     Remove-Item -Recurse $EdgePath -ErrorAction SilentlyContinue -ErrorVariable CmdErr
     Write-Verbose "$(if ($?) { "Deleted install directory '$EdgePath'" } else { $CmdErr })"
+
+    # Need to swich daemon with DockerCLI.exe to get docker functional again on Win 10.
+    Start-Service *docker*
+    $DockerCliExe = "$env:ProgramFiles\Docker\Docker\DockerCli.exe"
+    if ((Test-Path $DockerCliExe)) {
+        if (($UseWindowsContainers)) {
+            Invoke-Native "`"$DockerCliExe`" -SwitchWindowsEngine"
+        } else {
+            Invoke-Native "`"$DockerCliExe`" -SwitchLinuxEngine"
+        }
+    }
+    Write-Verbose "Restarted docker engine"
 }
 
 function Get-SystemPathKey {
@@ -255,6 +274,8 @@ function Install-IotEdgeService {
 function Uninstall-IotEdgeService {
     Stop-Service -NoWait -ErrorAction SilentlyContinue -ErrorVariable CmdErr iotedge
     Write-Verbose "$(if ($?) { "Stopped the IoT Edge service" } else { $CmdErr })"
+
+    Start-Sleep -s 7
 
     if (Invoke-Native "sc.exe delete iotedge" -ErrorAction SilentlyContinue) {
         Write-Verbose "Removed service subkey from the registry"
