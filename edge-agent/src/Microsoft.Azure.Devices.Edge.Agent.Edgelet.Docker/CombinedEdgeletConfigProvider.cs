@@ -49,14 +49,14 @@ namespace Microsoft.Azure.Devices.Edge.Agent.Edgelet.Docker
                 if (!string.IsNullOrWhiteSpace(networkId))
                 {
                     var endpointSettings = new EndpointSettings();
-                    if (module.Name.Equals(Constants.EdgeHubModuleName, StringComparison.OrdinalIgnoreCase)
-                        && !string.IsNullOrWhiteSpace(edgeDeviceHostName))
-                    {
-                        endpointSettings.Aliases = new List<string>
-                        {
-                            edgeDeviceHostName
-                        };
-                    }
+                    //if (module.Name.Equals(Constants.EdgeHubModuleName, StringComparison.OrdinalIgnoreCase)
+                    //    && !string.IsNullOrWhiteSpace(edgeDeviceHostName))
+                    //{
+                    //    endpointSettings.Aliases = new List<string>
+                    //    {
+                    //        edgeDeviceHostName
+                    //    };
+                    //}
 
                     IDictionary<string, EndpointSettings> endpointsConfig = new Dictionary<string, EndpointSettings>
                     {
