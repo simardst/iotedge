@@ -185,10 +185,10 @@ namespace Microsoft.Azure.Devices.Edge.Agent.Docker.Commands
             if (!string.IsNullOrWhiteSpace(networkId))
             {
                 var endpointSettings = new EndpointSettings();
-                if (addEdgeDeviceHostNameAlias && !string.IsNullOrWhiteSpace(edgeDeviceHostName))
-                {
-                    endpointSettings.Aliases = new List<string> { edgeDeviceHostName };
-                }
+                //if (addEdgeDeviceHostNameAlias && !string.IsNullOrWhiteSpace(edgeDeviceHostName))
+                //{
+                //    endpointSettings.Aliases = new List<string> { edgeDeviceHostName };
+                //}
 
                 IDictionary<string, EndpointSettings> endpointsConfig = new Dictionary<string, EndpointSettings>
                 {
