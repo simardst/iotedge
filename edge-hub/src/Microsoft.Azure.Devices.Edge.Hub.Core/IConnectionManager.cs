@@ -22,7 +22,9 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
     /// </summary>
     public interface IConnectionManager
     {
-        Task AddDeviceConnection(IIdentity identity, IDeviceProxy deviceProxy);
+        Task AddDeviceConnection(IClientCredentials clientCredentials);
+
+        Task BindDeviceProxy(IIdentity identity, IDeviceProxy deviceProxy);
 
         Task RemoveDeviceConnection(string id);
 
@@ -31,6 +33,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
         Task<Try<ICloudProxy>> GetOrCreateCloudConnectionAsync(IClientCredentials credentials);
 
         Option<IDeviceProxy> GetDeviceConnection(string id);
+
+        Option<IClientCredentials> GetClientCredentials(string id);
 
         Option<ICloudProxy> GetCloudConnection(string id);
 

@@ -24,19 +24,19 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
                 return false;
             }
 
-                Try<ICloudProxy> cloudProxyTry = await this.connectionManager.CreateCloudConnectionAsync(clientCredentials);
-                if (cloudProxyTry.Success)
+            Try<ICloudProxy> cloudProxyTry = await this.connectionManager.CreateCloudConnectionAsync(clientCredentials);
+            if (cloudProxyTry.Success)
+            {
+                try
                 {
-                    try
-                    {
-                        await cloudProxyTry.Value.OpenAsync();
-                        Events.AuthenticatedWithIotHub(clientCredentials.Identity);
-                        return true;
-                    }
-                    catch (Exception ex)
-                    {
-                        Events.ErrorValidatingTokenWithIoTHub(clientCredentials.Identity, ex);
-                    }
+                    await cloudProxyTry.Value.OpenAsync();
+                    Events.AuthenticatedWithIotHub(clientCredentials.Identity);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    Events.ErrorValidatingTokenWithIoTHub(clientCredentials.Identity, ex);
+                }
             }
             else
             {
@@ -62,7 +62,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             public static void AuthenticatedWithIotHub(IIdentity identity)
             {
                 Log.LogDebug((int)EventIds.AuthenticatedWithCloud, $"Authenticated {identity.Id} with IotHub");
-            }            
+            }
 
             public static void ErrorValidatingTokenWithIoTHub(IIdentity identity, Exception ex)
             {

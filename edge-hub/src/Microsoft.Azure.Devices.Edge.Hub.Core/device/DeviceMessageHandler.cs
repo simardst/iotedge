@@ -71,7 +71,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Device
             cloudProxy.ForEach(c => c.BindCloudListener(new CloudListener(this.edgeHub, this.Identity.Id)));
             // This operation is async, but we cannot await in this sync method.
             // It is fine because the await part of the operation is cleanup and best effort. 
-            this.connectionManager.AddDeviceConnection(this.Identity, this);
+            this.connectionManager.BindDeviceProxy(this.Identity, this);
             Events.BindDeviceProxy(this.Identity);
         }
 

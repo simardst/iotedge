@@ -15,15 +15,32 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
         readonly ISecurityScopeEntitiesCache securityScopeEntitiesCache;
         readonly string iothubHostName;
         readonly string edgeHubHostName;
+        readonly IAuthenticator underlyingAuthenticator;
 
-        public SecurityScopeTokenAuthenticator(ISecurityScopeEntitiesCache securityScopeEntitiesCache, string iothubHostName, string edgeHubHostName)
+        public SecurityScopeTokenAuthenticator(ISecurityScopeEntitiesCache securityScopeEntitiesCache,
+            string iothubHostName,
+            string edgeHubHostName,
+            IAuthenticator underlyingAuthenticator)
         {
-            this.securityScopeEntitiesCache = securityScopeEntitiesCache;
+            this.underlyingAuthenticator = Preconditions.CheckNotNull(underlyingAuthenticator, nameof(underlyingAuthenticator));
+            this.securityScopeEntitiesCache = Preconditions.CheckNotNull(securityScopeEntitiesCache, nameof(securityScopeEntitiesCache));
             this.iothubHostName = Preconditions.CheckNonWhiteSpace(iothubHostName, nameof(iothubHostName));
             this.edgeHubHostName = Preconditions.CheckNonWhiteSpace(edgeHubHostName, nameof(edgeHubHostName));
         }
 
         public async Task<bool> AuthenticateAsync(IClientCredentials clientCredentials)
+        {
+            if (!(clientCredentials is ITokenCredentials tokenCredentials))
+            {
+                return false;
+            }
+
+            bool result = await this.AuthenticateInternalAsync(clientCredentials)
+                || await this.underlyingAuthenticator.AuthenticateAsync(clientCredentials);
+            return result;
+        }
+
+        async Task<bool> AuthenticateInternalAsync(IClientCredentials clientCredentials)
         {
             if (!(clientCredentials is ITokenCredentials tokenCredentials))
             {

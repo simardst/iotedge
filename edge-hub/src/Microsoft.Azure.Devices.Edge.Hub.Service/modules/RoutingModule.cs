@@ -559,7 +559,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Service.Modules
                         IEdgeHub edgeHub = await c.Resolve<Task<IEdgeHub>>();
                         IConnectionManager connectionManager = await c.Resolve<Task<IConnectionManager>>();
                         IConfigSource edgeHubConnection = await EdgeHubConnection.Create(
-                            edgeHubCredentials.Identity as IModuleIdentity,
+                            edgeHubCredentials,
                             edgeHub,
                             twinManager,
                             connectionManager,

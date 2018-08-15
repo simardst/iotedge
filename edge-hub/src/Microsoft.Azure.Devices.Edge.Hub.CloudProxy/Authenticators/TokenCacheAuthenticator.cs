@@ -12,13 +12,13 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
 
     public class TokenCacheAuthenticator : IAuthenticator
     {
-        readonly IConnectionManager connectionManager;
+        readonly IAuthenticator cloudAuthenticator;
         readonly ICredentialsStore credentialsStore;
         readonly string iotHubHostName;
 
-        public TokenCacheAuthenticator(IConnectionManager connectionManager, ICredentialsStore credentialsStore, string iotHubHostName)
+        public TokenCacheAuthenticator(IAuthenticator cloudAuthenticator, ICredentialsStore credentialsStore, string iotHubHostName)
         {
-            this.connectionManager = Preconditions.CheckNotNull(connectionManager, nameof(connectionManager));
+            this.cloudAuthenticator = Preconditions.CheckNotNull(cloudAuthenticator, nameof(cloudAuthenticator));
             this.credentialsStore = Preconditions.CheckNotNull(credentialsStore, nameof(credentialsStore));
             this.iotHubHostName = Preconditions.CheckNonWhiteSpace(iotHubHostName, nameof(iotHubHostName));
         }
@@ -37,27 +37,13 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                     validatedTokenCredentials.Token.Equals(tokenCredentials.Token)))
                 .GetOrElse(Task.FromResult(false));
 
-            if (!isAuthenticated)
+            if (isAuthenticated)
             {
-                Try<ICloudProxy> cloudProxyTry = await this.connectionManager.CreateCloudConnectionAsync(clientCredentials);
-                if (cloudProxyTry.Success)
-                {
-                    try
-                    {
-                        await cloudProxyTry.Value.OpenAsync();
-                        isAuthenticated = true;
-                        await this.credentialsStore.Add(tokenCredentials);
-                        Events.AuthenticatedWithIotHub(clientCredentials.Identity);
-                    }
-                    catch (Exception)
-                    {
-                        isAuthenticated = false;
-                    }
-                }
+                Events.AuthenticatedFromCache(clientCredentials.Identity);
             }
             else
             {
-                Events.AuthenticatedFromCache(clientCredentials.Identity);
+                isAuthenticated = await this.cloudAuthenticator.AuthenticateAsync(clientCredentials);
             }
 
             return isAuthenticated;

@@ -15,14 +15,16 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
     {
         readonly string edgeDeviceId;
         readonly IAuthenticator tokenAuthenticator;
+        readonly IConnectionManager connectionManager;
 
-        public Authenticator(IAuthenticator tokenAuthenticator, string edgeDeviceId)
+        public Authenticator(IAuthenticator tokenAuthenticator, string edgeDeviceId, IConnectionManager connectionManager)
         {
             this.edgeDeviceId = Preconditions.CheckNonWhiteSpace(edgeDeviceId, nameof(edgeDeviceId));
             this.tokenAuthenticator = Preconditions.CheckNotNull(tokenAuthenticator, nameof(tokenAuthenticator));
+            this.connectionManager = Preconditions.CheckNotNull(connectionManager, nameof(connectionManager));
         }
 
-        public Task<bool> AuthenticateAsync(IClientCredentials clientCredentials)
+        public async Task<bool> AuthenticateAsync(IClientCredentials clientCredentials)
         {
             Preconditions.CheckNotNull(clientCredentials);
 
@@ -32,21 +34,28 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             if (clientCredentials.Identity is IModuleIdentity moduleIdentity && !moduleIdentity.DeviceId.Equals(this.edgeDeviceId, StringComparison.OrdinalIgnoreCase))
             {
                 Events.InvalidDeviceId(moduleIdentity, this.edgeDeviceId);
-                return Task.FromResult(false);
+                return false;
             }
 
+            bool isAuthenticated = false;
             if (clientCredentials.AuthenticationType == AuthenticationType.X509Cert)
             {
                 // If we reach here, we have validated the client cert. Validation is done in
                 // DeviceIdentityProvider.cs::RemoteCertificateValidationCallback. In the future, we could
                 // do authentication based on the CN. However, EdgeHub does not have enough information
                 // currently to do CN validation.
-                return Task.FromResult(true);
+                isAuthenticated = true;
             }
             else
             {
-                return this.tokenAuthenticator.AuthenticateAsync(clientCredentials);
+                isAuthenticated = await this.tokenAuthenticator.AuthenticateAsync(clientCredentials);
             }
+
+            if (isAuthenticated)
+            {
+                await this.connectionManager.AddDeviceConnection(clientCredentials);
+            }
+            return isAuthenticated;
         }
 
         static class Events
