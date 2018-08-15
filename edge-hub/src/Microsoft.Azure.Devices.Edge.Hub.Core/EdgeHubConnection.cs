@@ -3,12 +3,14 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
 {
     using System;
     using System.Collections.Generic;
+    using System.Text;
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Edge.Hub.Core.Cloud;
     using Microsoft.Azure.Devices.Edge.Hub.Core.Config;
     using Microsoft.Azure.Devices.Edge.Hub.Core.Device;
     using Microsoft.Azure.Devices.Edge.Hub.Core.Identity;
+    using Microsoft.Azure.Devices.Edge.Storage;
     using Microsoft.Azure.Devices.Edge.Util;
     using Microsoft.Azure.Devices.Edge.Util.Concurrency;
     using Microsoft.Azure.Devices.Routing.Core;
@@ -31,13 +33,15 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
         readonly VersionInfo versionInfo;
         readonly RouteFactory routeFactory;
         readonly AsyncLock edgeHubConfigLock = new AsyncLock();
+        readonly ISecurityScopeEntitiesCache securityScopeEntitiesCache;
 
         EdgeHubConnection(IModuleIdentity edgeHubIdentity,
             ITwinManager twinManager,
             RouteFactory routeFactory,
             IMessageConverter<TwinCollection> twinCollectionMessageConverter,
             IMessageConverter<Twin> twinMessageConverter,
-            VersionInfo versionInfo)
+            VersionInfo versionInfo,
+            ISecurityScopeEntitiesCache securityScopeEntitiesCache)
         {
             this.edgeHubIdentity = edgeHubIdentity;
             this.twinManager = twinManager;
@@ -45,6 +49,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             this.twinMessageConverter = twinMessageConverter;
             this.routeFactory = routeFactory;
             this.versionInfo = versionInfo ?? VersionInfo.Empty;
+            this.securityScopeEntitiesCache = securityScopeEntitiesCache;
         }
 
         public static async Task<EdgeHubConnection> Create(
@@ -56,7 +61,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             RouteFactory routeFactory,
             IMessageConverter<TwinCollection> twinCollectionMessageConverter,
             IMessageConverter<Twin> twinMessageConverter,
-            VersionInfo versionInfo
+            VersionInfo versionInfo,
+            ISecurityScopeEntitiesCache securityScopeEntitiesCache
         )
         {
             Preconditions.CheckNotNull(edgeHubCredentials, nameof(edgeHubCredentials));
@@ -66,11 +72,13 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             Preconditions.CheckNotNull(twinCollectionMessageConverter, nameof(twinCollectionMessageConverter));
             Preconditions.CheckNotNull(twinMessageConverter, nameof(twinMessageConverter));
             Preconditions.CheckNotNull(routeFactory, nameof(routeFactory));
+            Preconditions.CheckNotNull(securityScopeEntitiesCache, nameof(securityScopeEntitiesCache));
 
             var edgeHubConnection = new EdgeHubConnection(
                 edgeHubCredentials.Identity as IModuleIdentity, twinManager, routeFactory,
                 twinCollectionMessageConverter, twinMessageConverter,
-                versionInfo ?? VersionInfo.Empty
+                versionInfo ?? VersionInfo.Empty,
+                securityScopeEntitiesCache
             );
             cloudProxy.BindCloudListener(new CloudListener(edgeHubConnection));
 
@@ -79,6 +87,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             await connectionManager.BindDeviceProxy(edgeHubCredentials.Identity, deviceProxy);
 
             await edgeHub.AddSubscription(edgeHubCredentials.Identity.Id, DeviceSubscription.DesiredPropertyUpdates);
+            await edgeHub.AddSubscription(edgeHubCredentials.Identity.Id, DeviceSubscription.Methods);
 
             // Clear out all the reported devices.
             await edgeHubConnection.ClearDeviceConnectionStatuses();
@@ -326,6 +335,47 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             }
         }
 
+        Task<DirectMethodResponse> HandleMethodInvocation(DirectMethodRequest request)
+        {
+            Preconditions.CheckNotNull(request, nameof(request));
+            if (request.Name.Equals("RefreshSecurityScopeCacheRequest", StringComparison.OrdinalIgnoreCase))
+            {
+                if (TryParseRefreshRequest(request.Data, out RefreshRequest refreshRequest))
+                {
+                    this.securityScopeEntitiesCache
+                }
+            }
+        }
+
+        static bool TryParseRefreshRequest(byte[] data, out RefreshRequest refreshRequest)
+        {             
+            try
+            {
+                if (data != null)
+                {
+                    refreshRequest = data.FromBytes<RefreshRequest>();
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                refreshRequest = null;
+                Console.WriteLine(e);
+                return false;
+            }
+        }
+
+        class RefreshRequest
+        {
+            [JsonConstructor]
+            public RefreshRequest(IEnumerable<string> deviceIds)
+            {
+                this.DeviceIds = deviceIds;
+            }
+
+            public IEnumerable<string> DeviceIds { get; }
+        }
+
         class DesiredProperties
         {
             [JsonConstructor]
@@ -423,12 +473,11 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
 
             public Task CloseAsync(Exception ex) => Task.CompletedTask;
 
-            public Task OnDesiredPropertyUpdates(IMessage desiredProperties) => this.edgeHubConnection.HandleDesiredPropertiesUpdate(desiredProperties);
+            public Task OnDesiredPropertyUpdates(IMessage desiredProperties) =>
+                this.edgeHubConnection.HandleDesiredPropertiesUpdate(desiredProperties);
 
-            public Task<DirectMethodResponse> InvokeMethodAsync(DirectMethodRequest request)
-            {
-                throw new NotImplementedException();
-            }
+            public Task<DirectMethodResponse> InvokeMethodAsync(DirectMethodRequest request) =>
+                this.edgeHubConnection.HandleMethodInvocation(request);
 
             public Task SendC2DMessageAsync(IMessage message)
             {

@@ -16,9 +16,55 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             this.securityScopesApiClient = Preconditions.CheckNotNull(securityScopesApiClient, nameof(securityScopesApiClient));
         }
 
-        public ISecurityScopeIdentitiesIterator GetSecurityScopeIdentitiesIterator()
+        public ISecurityScopeIdentitiesIterator GetSecurityScopeIdentitiesIterator() => new SecurityScopeIdentitiesIterator(this.securityScopesApiClient);
+
+        public async Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId)
         {
-            return new SecurityScopeIdentitiesIterator(this.securityScopesApiClient);
+            ScopeResult scopeResult = await this.securityScopesApiClient.GetIdentity(deviceId, null);
+
+            ServiceIdentity serviceIdentity = DeviceToServiceIdentity()
+        }
+
+        public Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId, string moduleId)
+        {
+
+        }
+
+        static ServiceIdentity DeviceToServiceIdentity(Device device)
+        {
+            return new ServiceIdentity(
+                device.Id,
+                null,
+                device.Capabilities?.IotEdge ?? false,
+                GetServiceAuthentication(device.Authentication));
+        }
+
+        static ServiceIdentity ModuleToServiceIdentity(Module module)
+        {
+            return new ServiceIdentity(
+                module.Id,
+                null,
+                false,
+                GetServiceAuthentication(module.Authentication));
+        }
+
+        static ServiceAuthentication GetServiceAuthentication(AuthenticationMechanism authenticationMechanism)
+        {
+            switch (authenticationMechanism.Type)
+            {
+                case Devices.AuthenticationType.CertificateAuthority:
+                    return new ServiceAuthentication(ServiceAuthenticationType.CertificateAuthority, null, null);
+
+                case Devices.AuthenticationType.SelfSigned:
+                    return new ServiceAuthentication(ServiceAuthenticationType.CertificateThumbprint, null,
+                        new X509Thumbprint(authenticationMechanism.X509Thumbprint.PrimaryThumbprint, authenticationMechanism.X509Thumbprint.SecondaryThumbprint));
+
+                case Devices.AuthenticationType.Sas:
+                    return new ServiceAuthentication(ServiceAuthenticationType.SasKey, new SymmetricKey(authenticationMechanism.SymmetricKey.PrimaryKey, authenticationMechanism.SymmetricKey.SecondaryKey), null);
+
+                default:
+                    return new ServiceAuthentication(ServiceAuthenticationType.None, null, null);
+            }
         }
 
         class SecurityScopeIdentitiesIterator : ISecurityScopeIdentitiesIterator
@@ -53,44 +99,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                 return serviceIdentities;
             }
 
-            public bool HasNext { get; private set; }
-
-            static ServiceIdentity DeviceToServiceIdentity(Device device)
-            {
-                return new ServiceIdentity(
-                    device.Id,
-                    null,
-                    device.Capabilities?.IotEdge ?? false,
-                    GetServiceAuthentication(device.Authentication));
-            }
-
-            static ServiceIdentity ModuleToServiceIdentity(Module module)
-            {
-                return new ServiceIdentity(
-                    module.Id,
-                    null,
-                    false,
-                    GetServiceAuthentication(module.Authentication));
-            }
-
-            static ServiceAuthentication GetServiceAuthentication(AuthenticationMechanism authenticationMechanism)
-            {
-                switch (authenticationMechanism.Type)
-                {
-                    case Devices.AuthenticationType.CertificateAuthority:
-                        return new ServiceAuthentication(ServiceAuthenticationType.CertificateAuthority, null, null);
-
-                    case Devices.AuthenticationType.SelfSigned:
-                        return new ServiceAuthentication(ServiceAuthenticationType.CertificateThumbprint, null,
-                            new X509Thumbprint(authenticationMechanism.X509Thumbprint.PrimaryThumbprint, authenticationMechanism.X509Thumbprint.SecondaryThumbprint));
-
-                    case Devices.AuthenticationType.Sas:
-                        return new ServiceAuthentication(ServiceAuthenticationType.SasKey, new SymmetricKey(authenticationMechanism.SymmetricKey.PrimaryKey, authenticationMechanism.SymmetricKey.SecondaryKey), null);
-
-                    default:
-                        return new ServiceAuthentication(ServiceAuthenticationType.None, null, null);
-                }
-            }
+            public bool HasNext { get; private set; }            
         }
     }
 }
