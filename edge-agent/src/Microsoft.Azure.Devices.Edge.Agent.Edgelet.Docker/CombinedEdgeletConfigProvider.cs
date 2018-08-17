@@ -36,6 +36,9 @@ namespace Microsoft.Azure.Devices.Edge.Agent.Edgelet.Docker
             this.MountSockets(module, createOptions);
             this.InjectNetworkAliases(module, createOptions);
 
+            Console.WriteLine("CreateOptions:");
+            Console.WriteLine(JsonConvert.SerializeObject(createOptions));
+
             return new CombinedDockerConfig(combinedConfig.Image, createOptions, combinedConfig.AuthConfig);
         }
 
