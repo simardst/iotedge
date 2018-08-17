@@ -15,5 +15,9 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
         Task RefreshCache(string deviceId);
 
         Task RefreshCache(string deviceId, string moduleId);
+
+        event EventHandler<ServiceIdentity> ServiceIdentityUpdated;
+
+        event EventHandler<string> ServiceIdentityRemoved;
     }
 }

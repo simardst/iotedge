@@ -16,16 +16,53 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
         readonly string iothubHostName;
         readonly string edgeHubHostName;
         readonly IAuthenticator underlyingAuthenticator;
+        readonly IConnectionManager connectionManager;
 
         public SecurityScopeTokenAuthenticator(ISecurityScopeEntitiesCache securityScopeEntitiesCache,
             string iothubHostName,
             string edgeHubHostName,
-            IAuthenticator underlyingAuthenticator)
+            IAuthenticator underlyingAuthenticator,
+            IConnectionManager connectionManager)
         {
             this.underlyingAuthenticator = Preconditions.CheckNotNull(underlyingAuthenticator, nameof(underlyingAuthenticator));
             this.securityScopeEntitiesCache = Preconditions.CheckNotNull(securityScopeEntitiesCache, nameof(securityScopeEntitiesCache));
             this.iothubHostName = Preconditions.CheckNonWhiteSpace(iothubHostName, nameof(iothubHostName));
             this.edgeHubHostName = Preconditions.CheckNonWhiteSpace(edgeHubHostName, nameof(edgeHubHostName));
+            this.connectionManager = Preconditions.CheckNotNull(connectionManager, nameof(connectionManager));
+            this.securityScopeEntitiesCache.ServiceIdentityUpdated += this.HandleServiceIdentityUpdate;
+            this.securityScopeEntitiesCache.ServiceIdentityRemoved += this.HandleServiceIdentityRemove;
+        }
+
+        async void HandleServiceIdentityUpdate(object sender, ServiceIdentity serviceIdentity)
+        {
+            try
+            {
+                Option<IClientCredentials> clientCredentials = this.connectionManager.GetClientCredentials(serviceIdentity.Id);
+                await clientCredentials.ForEachAsync(
+                    async c =>
+                    {
+                        if (!(await this.AuthenticateInternalAsync(c)))
+                        {
+                            await this.connectionManager.RemoveDeviceConnection(c.Identity.Id);
+                        }
+                    });
+            }
+            catch (Exception)
+            {
+                // Log
+            }
+        }
+
+        async void HandleServiceIdentityRemove(object sender, string id)
+        {
+            try
+            {
+                await this.connectionManager.RemoveDeviceConnection(id);
+            }
+            catch (Exception)
+            {
+                // Log
+            }
         }
 
         public async Task<bool> AuthenticateAsync(IClientCredentials clientCredentials)
@@ -90,7 +127,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
             catch (UnauthorizedAccessException e)
             {
                 return Try<bool>.Failure(e);
-            }            
+            }
         }
     }
 }

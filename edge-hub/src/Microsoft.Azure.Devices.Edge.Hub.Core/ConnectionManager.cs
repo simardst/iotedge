@@ -82,7 +82,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
         public Option<IClientCredentials> GetClientCredentials(string id)
         {
             return this.devices.TryGetValue(Preconditions.CheckNonWhiteSpace(id, nameof(id)), out ConnectedDevice device)
-                ? device.DeviceConnection.Map(dc => dc.ClientCredentials)
+                ? device.DeviceConnection.Filter(dp => dp.IsActive).Map(dc => dc.ClientCredentials)
                 : Option.None<IClientCredentials>();
         }
 
