@@ -16,16 +16,30 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
         readonly IServiceProxy serviceProxy;
         readonly IEncryptedStore<string, string> encryptedStore;
         readonly AsyncLock asyncLock = new AsyncLock();
-        IDictionary<string, ServiceIdentity> serviceIdentityCache;
+        IDictionary<string, StoredServiceIdentity> serviceIdentityCache;
         readonly Timer refreshCacheTimer;
         Task refreshCacheTask;
 
-        public SecurityScopeEntitiesCache(IServiceProxy serviceProxy, IEncryptedStore<string, string> encryptedStorage)
+        public event EventHandler<ServiceIdentity> ServiceIdentityUpdated;
+        public event EventHandler<string> ServiceIdentityRemoved;
+
+        SecurityScopeEntitiesCache(IServiceProxy serviceProxy,
+            IEncryptedStore<string, string> encryptedStorage,
+            IDictionary<string, StoredServiceIdentity> initialCache)
         {
             this.serviceProxy = serviceProxy;
             this.encryptedStore = encryptedStorage;
-            this.serviceIdentityCache = new Dictionary<string, ServiceIdentity>();
+            this.serviceIdentityCache = initialCache;
             this.refreshCacheTimer = new Timer(this.RefreshCache, null, TimeSpan.Zero, TimeSpan.FromHours(1));
+        }
+
+        public static async Task<SecurityScopeEntitiesCache> Create(IServiceProxy serviceProxy, IEncryptedStore<string, string> encryptedStorage)
+        {
+            Preconditions.CheckNotNull(serviceProxy, nameof(serviceProxy));
+            Preconditions.CheckNotNull(encryptedStorage, nameof(encryptedStorage));
+
+            IDictionary<string, StoredServiceIdentity> cache = await ReadCacheFromStore(encryptedStorage);
+            return new SecurityScopeEntitiesCache(serviceProxy, encryptedStorage, cache);
         }
 
         void RefreshCache(object state)
@@ -38,55 +52,104 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
 
         public async Task RefreshCache()
         {
-            using (await this.asyncLock.LockAsync())
+            try
             {
-                IDictionary<string, ServiceIdentity> cache = await this.ReadCacheFromStore();
-                try
+                IEnumerable<string> currentCacheIds = new List<string>(this.serviceIdentityCache.Keys);
+                ISecurityScopeIdentitiesIterator iterator = this.serviceProxy.GetSecurityScopeIdentitiesIterator();
+                while (iterator.HasNext)
                 {
-                    ISecurityScopeIdentitiesIterator iterator = this.serviceProxy.GetSecurityScopeIdentitiesIterator();
-                    while (iterator.HasNext)
+                    IEnumerable<ServiceIdentity> batch = await iterator.GetNext();
+                    foreach (ServiceIdentity serviceIdentity in batch)
                     {
-                        IEnumerable<ServiceIdentity> batch = await iterator.GetNext();
-                        foreach (ServiceIdentity serviceIdentity in batch)
-                        {
-                            cache[serviceIdentity.Id] = serviceIdentity;
-                            await this.SaveServiceIdentityToStore(serviceIdentity.Id, serviceIdentity);
-                        }
+                        await this.HandleNewServiceIdentity(serviceIdentity);
                     }
-                }
-                catch (Exception)
-                {
-                    // Log
                 }
 
                 // Diff and update
-
-                this.serviceIdentityCache = cache;
+                IEnumerable<string> removedIds = currentCacheIds.Except(this.serviceIdentityCache.Keys);
+                await Task.WhenAll(removedIds.Select(id => this.HandleNoServiceIdentity(id)));
             }
+            catch (Exception)
+            {
+                // Log
+            }
+        }
+
+        public async Task RefreshCache(string deviceId)
+        {
+            Option<ServiceIdentity> serviceIdentity = await this.serviceProxy.GetServiceIdentity(deviceId);
+            await serviceIdentity
+                .Map(this.HandleNewServiceIdentity)
+                .GetOrElse(this.HandleNoServiceIdentity(deviceId));
+        }
+
+        public async Task RefreshCache(string deviceId, string moduleId)
+        {
+            Option<ServiceIdentity> serviceIdentity = await this.serviceProxy.GetServiceIdentity(deviceId, moduleId);
+            await serviceIdentity
+                .Map(this.HandleNewServiceIdentity)
+                .GetOrElse(this.HandleNoServiceIdentity($"{deviceId}/{moduleId}"));
         }
 
         public async Task RefreshCache(IEnumerable<string> deviceIds)
         {
-            using (await this.asyncLock.LockAsync())
+            Preconditions.CheckNotNull(deviceIds, nameof(deviceIds));
+            foreach (string deviceId in deviceIds)
             {
-
+                await this.RefreshCache(deviceId);
             }
         }
 
-        async Task SaveServiceIdentityToStore(string id, ServiceIdentity serviceIdentity)
+        async Task HandleNoServiceIdentity(string id)
         {
-            string serviceIdentityString = JsonConvert.SerializeObject(serviceIdentity);
+            var storedServiceIdentity = new StoredServiceIdentity(id);
+            this.serviceIdentityCache[id] = storedServiceIdentity;
+            await this.SaveServiceIdentityToStore(id, storedServiceIdentity);
+
+            // Remove device if connected
+            this.ServiceIdentityRemoved?.Invoke(this, id);
+        }
+
+        async Task HandleNewServiceIdentity(ServiceIdentity serviceIdentity)
+        {
+            // lock?
+            bool hasUpdated = !this.CompareWithCacheValue(serviceIdentity);
+            var storedServiceIdentity = new StoredServiceIdentity(serviceIdentity);
+            this.serviceIdentityCache[serviceIdentity.Id] = storedServiceIdentity;
+            await this.SaveServiceIdentityToStore(serviceIdentity.Id, storedServiceIdentity);
+
+            if (hasUpdated)
+            {
+                this.ServiceIdentityUpdated?.Invoke(this, serviceIdentity);
+            }
+        }
+
+        bool CompareWithCacheValue(ServiceIdentity serviceIdentity)
+        {
+            if (this.serviceIdentityCache.TryGetValue(serviceIdentity.Id, out StoredServiceIdentity currentStoredServiceIdentity))
+            {
+                return currentStoredServiceIdentity.ServiceIdentity
+                    .Map(s => s.Equals(serviceIdentity))
+                    .GetOrElse(false);
+            }
+
+            return false;
+        }
+
+        async Task SaveServiceIdentityToStore(string id, StoredServiceIdentity storedServiceIdentity)
+        {
+            string serviceIdentityString = JsonConvert.SerializeObject(storedServiceIdentity);
             await this.encryptedStore.Put(id, serviceIdentityString);
         }
 
-        async Task<IDictionary<string, ServiceIdentity>> ReadCacheFromStore()
+        static async Task<IDictionary<string, StoredServiceIdentity>> ReadCacheFromStore(IEncryptedStore<string, string> encryptedStore)
         {
-            IDictionary<string, ServiceIdentity> cache = new Dictionary<string, ServiceIdentity>();
-            await this.encryptedStore.IterateBatch(
+            IDictionary<string, StoredServiceIdentity> cache = new Dictionary<string, StoredServiceIdentity>();
+            await encryptedStore.IterateBatch(
                 int.MaxValue,
                 (key, value) =>
                 {
-                    cache.Add(key, JsonConvert.DeserializeObject<ServiceIdentity>(value));
+                    cache.Add(key, JsonConvert.DeserializeObject<StoredServiceIdentity>(value));
                     return Task.CompletedTask;
                 });
             return cache;
@@ -94,9 +157,9 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
 
         public Task<Option<ServiceIdentity>> GetServiceIdentity(string id)
         {
-            if (this.serviceIdentityCache.TryGetValue(id, out ServiceIdentity serviceIdentity))
+            if (this.serviceIdentityCache.TryGetValue(id, out StoredServiceIdentity storedServiceIdentity))
             {
-                return Task.FromResult(Option.Some(serviceIdentity));
+                return Task.FromResult(storedServiceIdentity.ServiceIdentity);
             }
             return Task.FromResult(Option.None<ServiceIdentity>());
         }
@@ -108,88 +171,30 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
             this.refreshCacheTask?.Dispose();
         }
 
-        class Refresher
+        class StoredServiceIdentity
         {
-            bool refreshAll;
-            ISet<string> deviceIds = new HashSet<string>();
-            readonly AsyncLock addWorkLock = new AsyncLock();
-            Task refreshCacheTask;
-            readonly IServiceProxy serviceProxy;
-            readonly IEncryptedStore<string, string> encryptedStore;
-            readonly AsyncLock asyncLock = new AsyncLock();
-            IDictionary<string, ServiceIdentity> serviceIdentityCache;
-
-            public Refresher(IServiceProxy serviceProxy,
-                IEncryptedStore<string, string> encryptedStorage,
-                IDictionary<string, ServiceIdentity> serviceIdentityCache)
+            public StoredServiceIdentity(ServiceIdentity serviceIdentity)
+                : this(Preconditions.CheckNotNull(serviceIdentity, nameof(serviceIdentity)).Id, serviceIdentity, DateTime.UtcNow)
             {
-                this.serviceProxy = serviceProxy;
-                this.encryptedStore = encryptedStorage;
-                this.serviceIdentityCache = serviceIdentityCache;
             }
 
-            public async Task Refresh(Option<IEnumerable<string>> deviceIds)
-            {
-                using (await this.addWorkLock.LockAsync())
-                {
-                    if (!deviceIds.HasValue)
-                    {
-                        this.refreshAll = true;
-                    }
-                    else
-                    {
-                        deviceIds.ForEach(
-                            d =>
-                            {
-                                foreach (string id in d)
-                                {
-                                    this.deviceIds.Add(id);
-                                }
-                            });
-                    }
+            public StoredServiceIdentity(string id)
+                : this(Preconditions.CheckNotNull(id, nameof(id)), null, DateTime.UtcNow)
+            { }
 
-                    if (this.refreshCacheTask == null || this.refreshCacheTask.IsCompleted)
-                    {
-                        this.refreshCacheTask = this.StartWork();
-                    }                    
-                }
+            [JsonConstructor]
+            public StoredServiceIdentity(string id, ServiceIdentity serviceIdentity, DateTime timestamp)
+            {
+                this.ServiceIdentity = Option.Maybe(serviceIdentity);
+                this.Id = Preconditions.CheckNotNull(id);
+                this.Timestamp = timestamp;
             }
 
-            async Task StartWork()
-            {
-                while (true)
-                {
-                    Task work;
-                    using(await this.addWorkLock.LockAsync())
-                    if (this.deviceIds == null || this.deviceIds.Count > 0)
-                    {
-                        ISet<string> deviceIdsToProcess = this.deviceIds;
-                        this.deviceIds = new HashSet<string>();
-                        work = this.ProcessDeviceIds(deviceIdsToProcess);
-                    }
-                    else if (this.refreshAll)
-                    {
-                        this.refreshAll = false;
-                        work = this.ProcessAll();
-                    }
-                    else
-                    {
-                        break;
-                    }
+            public Option<ServiceIdentity> ServiceIdentity { get; }
 
-                    await (work ?? Task.CompletedTask);
-                }
-            }
+            public string Id { get; }
 
-            Task ProcessAll()
-            {
-                throw new NotImplementedException();
-            }
-
-            Task ProcessDeviceIds(IEnumerable<string> deviceIdsToProcess)
-            {
-                throw new NotImplementedException();
-            }
+            public DateTime Timestamp { get; }
         }
     }
 }

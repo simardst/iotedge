@@ -3,6 +3,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
 {
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using Microsoft.Azure.Devices.Edge.Util;
     using Newtonsoft.Json;
     using Newtonsoft.Json.Converters;
 
@@ -24,6 +25,10 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
         //Task<IEnumerable<ServiceIdentity>> GetModulesOnDevice(string deviceId);
 
         ISecurityScopeIdentitiesIterator GetSecurityScopeIdentitiesIterator();
+
+        Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId, string moduleId);
+
+        Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId);
     }
 
     public interface ISecurityScopeIdentitiesIterator
@@ -31,7 +36,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
         Task<IEnumerable<ServiceIdentity>> GetNext();
 
         bool HasNext { get; }
-    }
+    }    
 
     public class ServiceIdentity
     {

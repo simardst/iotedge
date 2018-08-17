@@ -10,8 +10,10 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Cloud
     {
         Task<Option<ServiceIdentity>> GetServiceIdentity(string id);
 
-        Task RefreshCache();
-
         Task RefreshCache(IEnumerable<string> deviceIds);
+
+        Task RefreshCache(string deviceId);
+
+        Task RefreshCache(string deviceId, string moduleId);
     }
 }

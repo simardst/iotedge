@@ -21,13 +21,55 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
         public async Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId)
         {
             ScopeResult scopeResult = await this.securityScopesApiClient.GetIdentity(deviceId, null);
+            if (scopeResult != null)
+            {
+                if (scopeResult.Devices != null)
+                {
+                    int count = scopeResult.Devices.Count();
+                    if (count == 1)
+                    {
+                        ServiceIdentity serviceIdentity = DeviceToServiceIdentity(scopeResult.Devices.First());
+                        return Option.Some(serviceIdentity);
+                    }
+                }
+                else
+                {
+                    // Log More than one device received
+                }
+            }
+            else
+            {
+                // Log null scope result
+            }
 
-            ServiceIdentity serviceIdentity = DeviceToServiceIdentity()
+            return Option.None<ServiceIdentity>();
         }
 
-        public Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId, string moduleId)
+        public async Task<Option<ServiceIdentity>> GetServiceIdentity(string deviceId, string moduleId)
         {
+            ScopeResult scopeResult = await this.securityScopesApiClient.GetIdentity(deviceId, moduleId);
+            if (scopeResult != null)
+            {
+                if (scopeResult.Modules != null)
+                {
+                    int count = scopeResult.Modules.Count();
+                    if (count == 1)
+                    {
+                        ServiceIdentity serviceIdentity = ModuleToServiceIdentity(scopeResult.Modules.First());
+                        return Option.Some(serviceIdentity);
+                    }
+                }
+                else
+                {
+                    // Log More than one device received
+                }
+            }
+            else
+            {
+                // Log null scope result
+            }
 
+            return Option.None<ServiceIdentity>();
         }
 
         static ServiceIdentity DeviceToServiceIdentity(Device device)
