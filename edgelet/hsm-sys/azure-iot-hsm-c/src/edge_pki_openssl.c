@@ -788,6 +788,106 @@ static int set_basic_constraints(X509 *x509_cert, CERTIFICATE_TYPE cert_type, in
     return result;
 }
 
+// static int add_ext(STACK_OF(X509_EXTENSION) *sk, int nid, char *value)
+// {
+//     int result;
+//     X509_EXTENSION *ex;
+
+//     if ((ex = X509V3_EXT_conf_nid(NULL, NULL, nid, value)) == NULL)
+//     {
+//         result = __FAILURE__;
+//     }
+//     else if (sk_X509_EXTENSION_push(sk, ex) == 0)
+//     {
+//         result = __FAILURE__;
+//     }
+//     else
+//     {
+//         result = 0;
+//     }
+
+//     return result;
+// }
+
+static int add_ext(X509 *x509_cert, int nid, char *value)
+{
+    int result;
+    X509_EXTENSION *ex;
+
+    if ((ex = X509V3_EXT_conf_nid(NULL, NULL, nid, value)) == NULL)
+    {
+        result = __FAILURE__;
+    }
+    else
+    {
+        if (X509_add_ext(x509_cert, ex, -1) == 0)
+        {
+            result = __FAILURE__;
+        }
+        else
+        {
+            result = 0;
+        }
+        X509_EXTENSION_free(ex);
+    }
+
+    return result;
+}
+
+static int set_subject_alternate_names
+(
+    X509 *x509_cert,
+    CERTIFICATE_TYPE cert_type,
+    X509* issuer_cert
+)
+{
+    #ifdef DISABLE_SAN
+        int result = 0;
+    #else
+    (void)issuer_cert;
+    int result;
+
+    if (cert_type == CERTIFICATE_TYPE_SERVER)
+    {
+        LOG_ERROR("Before subj alt name");
+        if (add_ext(x509_cert, NID_subject_alt_name, "DNS:") != 0)
+        {
+            LOG_ERROR("Could not add subject alt name extension to certificate");
+            result = __FAILURE__;
+        }
+        else
+        {
+            LOG_ERROR("After subj alt name");
+            result = 0;
+        }
+        // if (X509_add1_ext_i2d(x509_cert, NID_subject_alt_name, "DNS:", 0, X509V3_ADD_DEFAULT) != 1)
+        // {
+        //     LOG_ERROR("Could not add subject alt name extension to certificate");
+        //     result = __FAILURE__;
+        // }
+
+        // STACK_OF(X509_EXTENSION) *exts;
+        // if ((exts = sk_X509_EXTENSION_new_null()) == NULL)
+        // {
+        //     result = __FAILURE__;
+        // }
+        // else
+        // {
+
+        //     result = add_ext(exts, NID_subject_alt_name, "DNS:");
+        //   	X509_add_extensions(x509_cert, exts);
+	    //     sk_X509_EXTENSION_pop_free(exts, X509_EXTENSION_free)
+        // }
+    }
+    else
+    {
+        LOG_ERROR("not requried subj alt name");
+        result = 0;
+    }
+    #endif
+    return result;
+}
+
 static int cert_set_extensions
 (
     X509 *x509_cert,
@@ -796,8 +896,20 @@ static int cert_set_extensions
     int ca_path_len
 )
 {
-    (void)issuer_cert;
-    return set_basic_constraints(x509_cert, cert_type, ca_path_len);
+    int result;
+
+    if ((set_basic_constraints(x509_cert, cert_type, ca_path_len) != 0) ||
+        (set_subject_alternate_names(x509_cert, cert_type, issuer_cert) != 0))
+    {
+        LOG_ERROR("Failure setting certificate extensions");
+        result = __FAILURE__;
+    }
+    else
+    {
+        result = 0;
+    }
+
+    return result;
 }
 
 static int cert_set_subject_field
