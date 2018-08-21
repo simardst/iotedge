@@ -43,7 +43,8 @@ namespace SimulatedTemperatureSensor
                 .AddEnvironmentVariables()
                 .Build();
 
-            TimeSpan messageDelay = configuration.GetValue("MessageDelay", TimeSpan.FromSeconds(5));
+            //TimeSpan messageDelay = configuration.GetValue("MessageDelay", TimeSpan.FromSeconds(5));
+            TimeSpan messageDelay = TimeSpan.FromMinutes(1);
             var sim = new SimulatorParameters
             {
                 MachineTempMin = configuration.GetValue<double>("machineTempMin", 21),
@@ -202,24 +203,27 @@ namespace SimulatedTemperatureSensor
                     currentTemp += -0.25 + (Rnd.NextDouble() * 1.5); // add value between [-0.25..1.25] - average +0.5
                 }
 
-                var tempData = new MessageBody
-                {
-                    Machine = new Machine
-                    {
-                        Temperature = currentTemp,
-                        Pressure = sim.MachinePressureMin + ((currentTemp - sim.MachineTempMin) * normal),
-                    },
-                    Ambient = new Ambient
-                    {
-                        Temperature = sim.AmbientTemp + Rnd.NextDouble() - 0.5,
-                        Humidity = Rnd.Next(24, 27)
-                    },
-                    TimeCreated = DateTime.UtcNow
-                };
+                //var tempData = new MessageBody
+                //{
+                //    Machine = new Machine
+                //    {
+                //        Temperature = currentTemp,
+                //        Pressure = sim.MachinePressureMin + ((currentTemp - sim.MachineTempMin) * normal),
+                //    },
+                //    Ambient = new Ambient
+                //    {
+                //        Temperature = sim.AmbientTemp + Rnd.NextDouble() - 0.5,
+                //        Humidity = Rnd.Next(24, 27)
+                //    },
+                //    TimeCreated = DateTime.UtcNow
+                //};
 
-                string dataBuffer = JsonConvert.SerializeObject(tempData);
-                var eventMessage = new Message(Encoding.UTF8.GetBytes(dataBuffer));
-                Console.WriteLine($"\t{DateTime.Now.ToLocalTime()}> Sending message: {count}, Body: [{dataBuffer}]");
+                byte[] buffer = new byte[5 * 1024];
+
+                //string dataBuffer = JsonConvert.SerializeObject(tempData);
+                //var eventMessage = new Message(Encoding.UTF8.GetBytes(dataBuffer));
+                var eventMessage = new Message(buffer);
+                Console.WriteLine($"\t{DateTime.Now.ToLocalTime()}> Sending message: {count}, length: {buffer.Length}");
 
                 await moduleClient.SendEventAsync("temperatureOutput", eventMessage).ConfigureAwait(false);
                 await Task.Delay(messageDelay, cts.Token).ConfigureAwait(false);
