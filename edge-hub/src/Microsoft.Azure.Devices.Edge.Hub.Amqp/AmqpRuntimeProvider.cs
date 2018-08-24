@@ -86,6 +86,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Amqp
 
             IConnectionHandler connectionHandler = new ConnectionHandler(new EdgeAmqpConnection(amqpConnection), this.connectionProvider);
             amqpConnection.Extensions.Add(connectionHandler);
+
+            amqpConnection.Settings.IdleTimeOut = Constants.DefaultAmqpConnectionIdleTimeoutInMilliSeconds;
         }
 
         AmqpSession ISessionFactory.CreateSession(AmqpConnection connection, AmqpSessionSettings settings) => new AmqpSession(connection, settings, this);
