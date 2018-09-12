@@ -1,4 +1,4 @@
-%define iotedge_user iotedge
+%define iotedge_user root
 %define iotedge_group %{iotedge_user}
 %define iotedge_home %{_localstatedir}/lib/iotedge
 %define iotedge_logdir %{_localstatedir}/log/iotedge
@@ -42,32 +42,6 @@ make install DESTDIR=$RPM_BUILD_ROOT unitdir=%{_unitdir}
 rm -rf $RPM_BUILD_ROOT
 
 %pre
-# Check for container runtime
-if ! /usr/bin/getent group docker >/dev/null; then
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    echo ""
-    echo " ERROR: No container runtime detected."
-    echo ""
-    echo " Please install a container runtime and run this install again."
-    echo ""
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-
-    exit 1
-fi
-
-# Create iotedge group
-if ! /usr/bin/getent group iotedge >/dev/null; then
-    %{_sbindir}/groupadd -r %{iotedge_group}
-fi
-
-# Create iotedge user
-if ! /usr/bin/getent passwd iotedge >/dev/null; then
-    %{_sbindir}/useradd -r -g %{iotedge_group} -c "iotedge user" -s /bin/nologin -d %{iotedge_home} %{iotedge_user}
-fi
-
-if /usr/bin/getent group docker >/dev/null; then
-    %{_sbindir}/usermod -a -G docker %{iotedge_user}
-fi
 exit 0
 
 %post
