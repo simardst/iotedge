@@ -7,12 +7,12 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
-    using App.Metrics.Concurrency;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Client.Exceptions;
     using Microsoft.Azure.Devices.Edge.Hub.Core;
     using Microsoft.Azure.Devices.Edge.Hub.Core.Cloud;
     using Microsoft.Azure.Devices.Edge.Util;
+    using Microsoft.Azure.Devices.Edge.Util.Concurrency;
     using Microsoft.Azure.Devices.Shared;
     using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
@@ -29,6 +29,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
         readonly ResettableTimer timer;
         readonly bool closeOnIdleTimeout;
         readonly AtomicLong timeoutCount = new AtomicLong(0);
+        //int timeoutCount = 0;
 
         public CloudProxy(IClient client,
             IMessageConverterProvider messageConverterProvider,
@@ -103,7 +104,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             {
                 Twin twin = await this.client.GetTwinAsync();
                 Events.GetTwin(this);
-                this.timeoutCount.GetAndReset();
+                this.timeoutCount.Set(0);
                 IMessageConverter<Twin> converter = this.messageConverterProvider.Get<Twin>();
                 return converter.ToMessage(twin);
             }
@@ -124,7 +125,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             try
             {
                 await this.client.SendEventAsync(message);
-                this.timeoutCount.GetAndReset();
+                this.timeoutCount.Set(0);
                 Events.SendMessage(this);
             }
             catch (Exception ex)
@@ -144,7 +145,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             try
             {
                 await this.client.SendEventBatchAsync(messages);
-                this.timeoutCount.GetAndReset();
+                this.timeoutCount.Set(0);
                 Events.SendMessage(this);
             }
             catch (Exception ex)
@@ -163,7 +164,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             try
             {
                 await this.client.UpdateReportedPropertiesAsync(reported);
-                this.timeoutCount.GetAndReset();
+                this.timeoutCount.Set(0);
                 Events.UpdateReportedProperties(this);
             }
             catch (Exception ex)
@@ -247,13 +248,13 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
         }
 
         Task HandleTimeoutException(TimeoutException ex)
-        {
-            if (ex != null && 4 == this.timeoutCount.GetAndIncrement())
+        {            
+            if (ex != null && 4 == this.timeoutCount.Get())
             {
                 Events.ClosingTimeouts(this.clientId);
                 return this.CloseAsync();
             }
-
+            this.timeoutCount.Increment();
             return Task.CompletedTask;
         }
 
