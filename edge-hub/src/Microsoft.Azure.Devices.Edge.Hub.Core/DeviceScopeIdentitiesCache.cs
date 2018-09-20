@@ -220,7 +220,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core
                 Events.NotInScope(id);
                 // Remove device if connected
                 this.ServiceIdentityRemoved?.Invoke(this, id);
-           }
+            }
         }
 
         async Task HandleNewServiceIdentity(ServiceIdentity serviceIdentity)
