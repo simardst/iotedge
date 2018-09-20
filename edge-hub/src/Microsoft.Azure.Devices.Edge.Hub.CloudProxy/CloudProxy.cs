@@ -7,6 +7,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using App.Metrics.Concurrency;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Client.Exceptions;
     using Microsoft.Azure.Devices.Edge.Hub.Core;
@@ -27,6 +28,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
         readonly CloudReceiver cloudReceiver;
         readonly ResettableTimer timer;
         readonly bool closeOnIdleTimeout;
+        readonly AtomicLong timeoutCount = new AtomicLong(0);
 
         public CloudProxy(IClient client,
             IMessageConverterProvider messageConverterProvider,
@@ -97,10 +99,20 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
         public async Task<IMessage> GetTwinAsync()
         {
             this.timer.Reset();
-            Twin twin = await this.client.GetTwinAsync();
-            Events.GetTwin(this);
-            IMessageConverter<Twin> converter = this.messageConverterProvider.Get<Twin>();
-            return converter.ToMessage(twin);
+            try
+            {
+                Twin twin = await this.client.GetTwinAsync();
+                Events.GetTwin(this);
+                this.timeoutCount.GetAndReset();
+                IMessageConverter<Twin> converter = this.messageConverterProvider.Get<Twin>();
+                return converter.ToMessage(twin);
+            }
+            catch (Exception ex)
+            {
+                Events.ErrorGettingTwin(this, ex);
+                await this.HandleException(ex);
+                throw;
+            }
         }
 
         public async Task SendMessageAsync(IMessage inputMessage)
@@ -112,6 +124,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             try
             {
                 await this.client.SendEventAsync(message);
+                this.timeoutCount.GetAndReset();
                 Events.SendMessage(this);
             }
             catch (Exception ex)
@@ -131,6 +144,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             try
             {
                 await this.client.SendEventBatchAsync(messages);
+                this.timeoutCount.GetAndReset();
                 Events.SendMessage(this);
             }
             catch (Exception ex)
@@ -146,8 +160,18 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             string reportedPropertiesString = Encoding.UTF8.GetString(reportedPropertiesMessage.Body);
             var reported = JsonConvert.DeserializeObject<TwinCollection>(reportedPropertiesString);
             this.timer.Reset();
-            await this.client.UpdateReportedPropertiesAsync(reported);
-            Events.UpdateReportedProperties(this);
+            try
+            {
+                await this.client.UpdateReportedPropertiesAsync(reported);
+                this.timeoutCount.GetAndReset();
+                Events.UpdateReportedProperties(this);
+            }
+            catch (Exception ex)
+            {
+                Events.ErrorUpdatingReportedProperties(this, ex);
+                await this.HandleException(ex);
+                throw;
+            }
         }
 
         public Task SendFeedbackMessageAsync(string messageId, FeedbackStatus feedbackStatus)
@@ -210,11 +234,26 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                 {
                     this.connectionStatusChangedHandler(this.clientId, CloudConnectionStatus.DisconnectedTokenExpired);
                 }
+                else if (ex is TimeoutException te)
+                {
+                    return this.HandleTimeoutException(te);
+                }
             }
             catch (Exception e)
             {
                 Events.ExceptionInHandleException(this, ex, e);
             }
+            return Task.CompletedTask;
+        }
+
+        Task HandleTimeoutException(TimeoutException ex)
+        {
+            if (ex != null && 4 == this.timeoutCount.GetAndIncrement())
+            {
+                Events.ClosingTimeouts(this.clientId);
+                return this.CloseAsync();
+            }
+
             return Task.CompletedTask;
         }
 
@@ -281,6 +320,11 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                             if (e is UnauthorizedException || e is ObjectDisposedException)
                             {
                                 throw;
+                            }
+                            else if (e is TimeoutException te)
+                            {
+                                // Don't await this, as it will cause the loop to deadlock
+                                _ = this.cloudProxy.HandleTimeoutException(te);
                             }
 
                             // Wait for some time before trying again.
@@ -387,7 +431,10 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                 StartListening,
                 CloudReceiverNull,
                 ErrorOpening,
-                TimedOutClosing
+                TimedOutClosing,
+                ClosingTimeouts,
+                ErrorUpdatingReportedProperties,
+                ErrorGettingTwin
             }
 
             public static void Closed(CloudProxy cloudProxy)
@@ -423,11 +470,6 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             public static void UpdateReportedProperties(CloudProxy cloudProxy)
             {
                 Log.LogDebug((int)EventIds.UpdateReportedProperties, Invariant($"Updating reported properties for device {cloudProxy.clientId}"));
-            }
-
-            public static void BindCloudListener(CloudProxy cloudProxy)
-            {
-                Log.LogDebug((int)EventIds.BindCloudListener, Invariant($"Binding cloud listener for device {cloudProxy.clientId}"));
             }
 
             public static void SendFeedbackMessage(CloudProxy cloudProxy)
@@ -488,6 +530,21 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             public static void TimedOutClosing(string clientId)
             {
                 Log.LogInformation((int)EventIds.TimedOutClosing, Invariant($"Closing cloud proxy for {clientId} because of inactivity"));
+            }
+
+            public static void ClosingTimeouts(string clientId)
+            {
+                Log.LogInformation((int)EventIds.ClosingTimeouts, Invariant($"Closing cloud proxy for {clientId} because of multiple timeout exceptions"));
+            }
+
+            public static void ErrorUpdatingReportedProperties(CloudProxy cloudProxy, Exception ex)
+            {
+                Log.LogDebug((int)EventIds.ErrorUpdatingReportedProperties, ex, Invariant($"Error updating reported properties for {cloudProxy.clientId}"));
+            }
+
+            public static void ErrorGettingTwin(CloudProxy cloudProxy, Exception ex)
+            {
+                Log.LogDebug((int)EventIds.ErrorGettingTwin, ex, Invariant($"Error getting twin for {cloudProxy.clientId}"));
             }
         }
     }
