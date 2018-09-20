@@ -216,10 +216,10 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Test
             IDeviceScopeIdentitiesCache deviceScopeIdentitiesCache = await DeviceScopeIdentitiesCache.Create(serviceProxy.Object, store, TimeSpan.FromSeconds(7));
             deviceScopeIdentitiesCache.ServiceIdentityUpdated += (sender, identity) => updatedIdentities.Add(identity);
             deviceScopeIdentitiesCache.ServiceIdentityRemoved += (sender, s) => removedIdentities.Add(s);
-            
+
             // Wait for refresh to complete
             await Task.Delay(TimeSpan.FromSeconds(3));
-            
+
             Option<ServiceIdentity> receivedServiceIdentity1 = await deviceScopeIdentitiesCache.GetServiceIdentity("d1");
             Option<ServiceIdentity> receivedServiceIdentity2 = await deviceScopeIdentitiesCache.GetServiceIdentity("d2", "m1");
             Option<ServiceIdentity> receivedServiceIdentity3 = await deviceScopeIdentitiesCache.GetServiceIdentity("d3");
@@ -238,7 +238,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Test
             deviceScopeIdentitiesCache.InitiateCacheRefresh();
             deviceScopeIdentitiesCache.InitiateCacheRefresh();
             deviceScopeIdentitiesCache.InitiateCacheRefresh();
-            deviceScopeIdentitiesCache.InitiateCacheRefresh();        
+            deviceScopeIdentitiesCache.InitiateCacheRefresh();
 
             // Wait for the 2 refresh cycles to complete, this time because of the refresh request
             await Task.Delay(TimeSpan.FromSeconds(2));
