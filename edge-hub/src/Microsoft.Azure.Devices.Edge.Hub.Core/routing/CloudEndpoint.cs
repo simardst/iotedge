@@ -76,7 +76,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Routing
                 Util.Option<ICloudProxy> cloudProxy = await this.GetCloudProxy(routingMessage);
                 if (!cloudProxy.HasValue)
                 {
-                    sendFailureDetails = new SendFailureDetails(FailureKind.None, new EdgeHubConnectionException("IoT Hub is not connected"));
+                    sendFailureDetails = new SendFailureDetails(FailureKind.Transient, new EdgeHubConnectionException("IoT Hub is not connected"));
                     failed.Add(routingMessage);
                 }
                 else
@@ -113,6 +113,11 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Core.Routing
                             }
                         }
                     });
+                }
+
+                if (failed.Count > 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(10));
                 }
 
                 return new SinkResult<IRoutingMessage>(succeeded, failed, invalid, sendFailureDetails);

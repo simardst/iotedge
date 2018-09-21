@@ -20,6 +20,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
 
     class CloudProxy : ICloudProxy
     {
+        const int TimeoutCloseCount = 4;
+
         readonly IClient client;
         readonly IMessageConverterProvider messageConverterProvider;
         readonly Action<string, CloudConnectionStatus> connectionStatusChangedHandler;
@@ -28,8 +30,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
         readonly CloudReceiver cloudReceiver;
         readonly ResettableTimer timer;
         readonly bool closeOnIdleTimeout;
-        readonly AtomicLong timeoutCount = new AtomicLong(0);
-        //int timeoutCount = 0;
+        readonly AtomicLong timeoutCount = new AtomicLong(0);       
 
         public CloudProxy(IClient client,
             IMessageConverterProvider messageConverterProvider,
@@ -50,13 +51,15 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             {
                 this.connectionStatusChangedHandler = connectionStatusChangedHandler;
             }
+
+            Events.Initialized(this);
         }
 
         Task HandleIdleTimeout()
         {
             if (this.closeOnIdleTimeout)
             {
-                Events.TimedOutClosing(this.clientId);
+                Events.TimedOutClosing(this);
                 return this.CloseAsync();
             }
 
@@ -249,7 +252,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
 
         Task HandleTimeoutException(TimeoutException ex)
         {            
-            if (ex != null && 4 == this.timeoutCount.Get())
+            if (ex != null && TimeoutCloseCount == this.timeoutCount.Get())
             {
                 Events.ClosingTimeouts(this.clientId);
                 return this.CloseAsync();
@@ -533,9 +536,9 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                 Log.LogInformation((int)EventIds.TimedOutClosing, Invariant($"Closing cloud proxy for {clientId} because of inactivity"));
             }
 
-            public static void ClosingTimeouts(string clientId)
+            public static void ClosingTimeouts(CloudProxy cloudProxy)
             {
-                Log.LogInformation((int)EventIds.ClosingTimeouts, Invariant($"Closing cloud proxy for {clientId} because of multiple timeout exceptions"));
+                Log.LogInformation((int)EventIds.ClosingTimeouts, Invariant($"Closing cloud proxy {cloudProxy.id} for {cloudProxy.clientId} because of multiple timeout exceptions"));
             }
 
             public static void ErrorUpdatingReportedProperties(CloudProxy cloudProxy, Exception ex)
@@ -546,6 +549,11 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
             public static void ErrorGettingTwin(CloudProxy cloudProxy, Exception ex)
             {
                 Log.LogDebug((int)EventIds.ErrorGettingTwin, ex, Invariant($"Error getting twin for {cloudProxy.clientId}"));
+            }
+
+            public static void Initialized(CloudProxy cloudProxy)
+            {
+                Log.LogInformation((int)EventIds.ClosingTimeouts, Invariant($"Initialized cloud proxy {cloudProxy.id} for {cloudProxy.clientId}"));
             }
         }
     }
