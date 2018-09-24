@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>AzureIoT.StyleCopSettings</id>
+    <version>1.0.0</version>
+    <dependencies>
+      <dependency id="StyleCop.Analyzers" version="1.0.0" />
+    </dependencies>
+    <authors>Philip Lin</authors>
+    <description>Azure IoT StyleCop setting files</description>
+  </metadata>
+  <files>
+    <file src="stylecop.json" target="" />
+    <file src="azureiot.stylecopsettings.ruleset" target="" />
+    <file src="azureiot.stylecopsettings.props" target="build" />
+  </files>
+</package>
