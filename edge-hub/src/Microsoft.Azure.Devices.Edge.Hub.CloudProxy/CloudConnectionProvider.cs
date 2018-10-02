@@ -71,13 +71,13 @@ namespace Microsoft.Azure.Devices.Edge.Hub.CloudProxy
                                 return new ITransportSettings[]
                                 {
                                     new AmqpTransportSettings(transportType)
-                                    {
-                                        AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings
-                                        {
-                                            Pooling = true,
-                                            MaxPoolSize = (uint)connectionPoolSize
-                                        }
-                                    }
+                                    //{
+                                    //    AmqpConnectionPoolSettings = new AmqpConnectionPoolSettings
+                                    //    {
+                                    //        Pooling = true,
+                                    //        MaxPoolSize = (uint)connectionPoolSize
+                                    //    }
+                                    //}
                                 };
 
                             case TransportType.Mqtt_Tcp_Only:
