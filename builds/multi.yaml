@@ -1,15 +1,15 @@
+resources:
+  containers:
+    - container: u14
+      image: ubuntu:14.04
+    - container: u16
+      image: ubuntu:16.04
+    - container: u18
+      image: ubuntu:18.04
 jobs:
   - job: PrintEnv
     pool:
       vmImage: 'Ubuntu-16.04'
-    resources:
-      containers:
-        - container: u14
-          image: ubuntu:14.04
-        - container: u16
-          image: ubuntu:16.04
-        - container: u18
-          image: ubuntu:18.04
     strategy:
       matrix:
         ubuntu14:
