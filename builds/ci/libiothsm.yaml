@@ -1,11 +1,28 @@
-phases:
+resources:
+  containers:
+    - container: ubuntu16
+      image: ubuntu:16.04
+    - container: ubuntu18
+      image: ubuntu:18.04
+    - container: centos75
+      image: centos:7.5.1804
+
+jobs:
 
 ################################################################################
-  - phase: linux_amd64
+  - job: 'Linux amd64'
 ################################################################################
-    displayName: Linux amd64
-    queue:
-      name: Hosted Linux Preview
+    pool:
+      vmImage: 'Ubuntu-16.04'
+    strategy:
+      matrix:
+        ubuntu16:
+          containerResource: ubuntu16
+        ubuntu18:
+          containerResource: ubuntu18
+        centos75:
+          containerResource: centos75
+    container: $[ variables['containerResource'] ]
     steps:
       - task: Bash@3
         displayName: Clean package list

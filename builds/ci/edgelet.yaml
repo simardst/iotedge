@@ -1,11 +1,28 @@
-phases:
+resources:
+  containers:
+    - container: ubuntu16
+      image: ubuntu:16.04
+    - container: ubuntu18
+      image: ubuntu:18.04
+    - container: centos75
+      image: centos:7.5.1804
+
+jobs:
 
 ################################################################################
-  - phase: linux_amd64
+  - job: 'Linux amd64'
 ################################################################################
-    displayName: Linux amd64
-    queue:
-      name: Hosted Linux Preview
+    pool:
+      vmImage: 'Ubuntu-16.04'
+    strategy:
+      matrix:
+        ubuntu16:
+          containerResource: ubuntu16
+        ubuntu18:
+          containerResource: ubuntu18
+        centos75:
+          containerResource: centos75
+    container: $[ variables['containerResource'] ]
     steps:
       - script: echo "##vso[task.setvariable variable=NO_VALGRIND;]true"
         displayName: Set env variables
@@ -27,11 +44,10 @@ phases:
           filePath: edgelet/build/linux/test.sh
 
 ################################################################################
-  - phase: linux_arm32v7
+  - job: 'Linux arm32v7'
 ################################################################################
-    displayName: Linux arm32v7
-    queue:
-      name: Hosted Linux Preview
+    pool:
+      vmImage: 'Ubuntu-16.04'
     steps:
       - script: |
           echo "##vso[task.setvariable variable=RUSTUP_HOME;]$VSTS_WORK/rustup"
@@ -56,11 +72,10 @@ phases:
           arguments: --toolchain armv7-unknown-linux-gnueabihf --release true
 
 ################################################################################
-  - phase: windows_amd64
+  - job: 'Windows amd64'
 ################################################################################
-    displayName: Windows amd64
-    queue:
-      name: Hosted VS2017
+    pool:
+      vmImage: 'vs2017-win2016'
     steps:
       - powershell: Write-Host ("##vso[task.setvariable variable=NO_VALGRIND;]true")
         displayName: Set env variables
@@ -78,11 +93,10 @@ phases:
           filePath: edgelet/build/windows/test.ps1
 
 ################################################################################
-  - phase: style_check
+  - job: style_check
 ################################################################################
-    displayName: Style Check
-    queue:
-      name: Hosted Linux Preview
+    pool:
+      vmImage: 'Ubuntu-16.04'
     steps:
       - script: |
           echo "##vso[task.setvariable variable=NO_VALGRIND;]true"
