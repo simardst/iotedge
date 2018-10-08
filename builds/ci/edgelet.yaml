@@ -10,8 +10,9 @@ resources:
 jobs:
 
 ################################################################################
-  - job: 'Linux amd64'
+  - job: linux_amd64
 ################################################################################
+    displayName: 'Linux amd64'
     pool:
       vmImage: 'Ubuntu-16.04'
     strategy:
@@ -44,8 +45,9 @@ jobs:
           filePath: edgelet/build/linux/test.sh
 
 ################################################################################
-  - job: 'Linux arm32v7'
+  - job: linux_arm32v7
 ################################################################################
+    displayName: 'Linux arm32v7'
     pool:
       vmImage: 'Ubuntu-16.04'
     steps:
@@ -72,8 +74,9 @@ jobs:
           arguments: --toolchain armv7-unknown-linux-gnueabihf --release true
 
 ################################################################################
-  - job: 'Windows amd64'
+  - job: windows_amd64
 ################################################################################
+    displayName: 'Windows amd64'
     pool:
       vmImage: 'vs2017-win2016'
     steps:
@@ -95,6 +98,7 @@ jobs:
 ################################################################################
   - job: style_check
 ################################################################################
+    displayName: 'Style Check'
     pool:
       vmImage: 'Ubuntu-16.04'
     steps:
