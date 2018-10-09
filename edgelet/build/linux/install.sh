@@ -80,15 +80,13 @@ function process_args()
 
 process_args "$@"
 
-# install specified toolchain
-install_toolchain $TOOLCHAIN true
-
 # Add trusty repo to get older version of libc6-armhf-cross
 add-apt-repository "deb http://archive.ubuntu.com/ubuntu/ trusty main universe"
 
 # Install OpenSSL, curl and uuid and valgrind
 apt-get update && \
 apt-get install -y \
+    software-properties-common \
     pkg-config \
     uuid-dev curl \
     libcurl4-openssl-dev \
@@ -97,6 +95,9 @@ apt-get install -y \
     valgrind && \
 apt-get remove --yes libssl-dev && \
 apt-get install --yes --target-release xenial-updates libssl-dev
+
+# install specified toolchain
+install_toolchain $TOOLCHAIN true
 
 if [[ -n "$ARM_PACKAGE" ]]; then
     # armhf cross tools for packaging
