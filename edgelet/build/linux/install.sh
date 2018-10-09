@@ -4,7 +4,7 @@
 # This script installs the rust toolchain
 ###############################################################################
 
-set -e
+set -xe
 
 ###############################################################################
 # Define Environment Variables
@@ -80,9 +80,6 @@ function process_args()
 
 process_args "$@"
 
-# Add trusty repo to get older version of libc6-armhf-cross
-add-apt-repository "deb http://archive.ubuntu.com/ubuntu/ trusty main universe"
-
 # Install OpenSSL, curl and uuid and valgrind
 apt-get update && \
 apt-get install -y \
@@ -100,10 +97,14 @@ apt-get install --yes --target-release xenial-updates libssl-dev
 install_toolchain $TOOLCHAIN true
 
 if [[ -n "$ARM_PACKAGE" ]]; then
+    # Add trusty repo to get older version of libc6-armhf-cross
+    add-apt-repository "deb http://archive.ubuntu.com/ubuntu/ trusty main universe"
+
     # armhf cross tools for packaging
     # These packages need to be pinned to a specific version to make
     # the package dependent on the lowest version of glibc possible
 
+    apt-get update && \
     apt-get install -y \
         binutils-arm-linux-gnueabihf=2.24-2ubuntu3cross1.98 \
         libsfasan0-armhf-cross=4.8.2-16ubuntu4cross0.11 \
