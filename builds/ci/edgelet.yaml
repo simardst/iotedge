@@ -2,10 +2,13 @@ resources:
   containers:
     - container: ubuntu16
       image: ubuntu:16.04
+      options: --user root
     - container: ubuntu18
       image: ubuntu:18.04
+      options: --user root
     - container: centos75
       image: centos:7.5.1804
+      options: --user root
 
 jobs:
 
