@@ -4,6 +4,7 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Service
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics.Tracing;
     using System.Globalization;
     using System.Threading;
     using System.Threading.Tasks;
@@ -55,6 +56,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Service
             logger.LogInformation("Starting Edge Hub");
             LogLogo(logger);
             LogVersionInfo(logger);
+
+            ConsoleEventListener _listener = new ConsoleEventListener("Microsoft-Azure-");
 
             // EdgeHub and CloudConnectionProvider have a circular dependency. So need to Bind the EdgeHub to the CloudConnectionProvider.
             IEdgeHub edgeHub = await container.Resolve<Task<IEdgeHub>>();
