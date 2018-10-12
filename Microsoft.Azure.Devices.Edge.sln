@@ -167,6 +167,12 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectMethodSender", "edge-
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DirectMethodReceiver", "edge-modules\DirectMethodReceiver\DirectMethodReceiver.csproj", "{013D53C7-3AB5-41A4-9A8D-0F2C47238773}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Azure.Devices.Client", "..\..\..\workspace\sdk\azure-iot-sdk-csharp\iothub\device\src\Microsoft.Azure.Devices.Client.csproj", "{6630D588-0AC3-4D9B-8C08-A3B656465D92}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Azure.Devices", "..\..\..\workspace\sdk\azure-iot-sdk-csharp\iothub\service\src\Microsoft.Azure.Devices.csproj", "{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoft.Azure.Devices.Shared", "..\..\..\workspace\sdk\azure-iot-sdk-csharp\shared\src\Microsoft.Azure.Devices.Shared.csproj", "{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		CodeCoverage|Any CPU = CodeCoverage|Any CPU
@@ -438,6 +444,24 @@ Global
 		{013D53C7-3AB5-41A4-9A8D-0F2C47238773}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{013D53C7-3AB5-41A4-9A8D-0F2C47238773}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{013D53C7-3AB5-41A4-9A8D-0F2C47238773}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6630D588-0AC3-4D9B-8C08-A3B656465D92}.CodeCoverage|Any CPU.ActiveCfg = Debug|Any CPU
+		{6630D588-0AC3-4D9B-8C08-A3B656465D92}.CodeCoverage|Any CPU.Build.0 = Debug|Any CPU
+		{6630D588-0AC3-4D9B-8C08-A3B656465D92}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6630D588-0AC3-4D9B-8C08-A3B656465D92}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6630D588-0AC3-4D9B-8C08-A3B656465D92}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6630D588-0AC3-4D9B-8C08-A3B656465D92}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}.CodeCoverage|Any CPU.ActiveCfg = Debug|Any CPU
+		{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}.CodeCoverage|Any CPU.Build.0 = Debug|Any CPU
+		{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47F85FA8-AD7F-4FF3-B99C-02350CD80CF4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}.CodeCoverage|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}.CodeCoverage|Any CPU.Build.0 = Debug|Any CPU
+		{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A3DB2A9-3601-4AF6-890B-E2EF3C623209}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

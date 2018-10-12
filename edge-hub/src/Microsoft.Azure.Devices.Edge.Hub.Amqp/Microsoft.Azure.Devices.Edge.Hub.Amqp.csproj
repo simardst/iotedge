@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
     <Configurations>Debug;Release;CodeCoverage</Configurations>
     <HighEntropyVA>true</HighEntropyVA>
   </PropertyGroup>
@@ -18,10 +18,11 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Azure.Amqp" Version="2.3.2" />
-    <PackageReference Include="Microsoft.Azure.Devices" Version="1.17.0" />
+    <PackageReference Include="Microsoft.Azure.Amqp" Version="2.3.5" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\workspace\sdk\azure-iot-sdk-csharp\iothub\service\src\Microsoft.Azure.Devices.csproj" />
+    <ProjectReference Include="..\..\..\..\..\..\workspace\sdk\azure-iot-sdk-csharp\shared\src\Microsoft.Azure.Devices.Shared.csproj" />
     <ProjectReference Include="..\..\..\edge-util\src\Microsoft.Azure.Devices.Edge.Util\Microsoft.Azure.Devices.Edge.Util.csproj" />
     <ProjectReference Include="..\Microsoft.Azure.Devices.Edge.Hub.Core\Microsoft.Azure.Devices.Edge.Hub.Core.csproj" />
   </ItemGroup>
