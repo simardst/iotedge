@@ -4,6 +4,8 @@ set -ex
 main() {
     local SHLIB_VERSION_NUMBER=1.0.2 
     local version=${SHLIB_VERSION_NUMBER}m
+    local SHLIB_MAJOR=1
+    local SHLIB_MINOR=0.2
     local os=$1 \
     local triple=$2
     local sysroot=$3
@@ -34,11 +36,12 @@ main() {
       --prefix=${sysroot}/usr \
       --openssldir=${sysroot}/usr \
       no-asm \
+      shared \
       $os \
       -fPIC \
       ${@:4}
-    make -j$(nproc)
-    make  install_sw
+    make SHLIB_VERSION_NUMBER=${SHLIB_VERSION_NUMBER} SHLIB_MAJOR=${SHLIB_MAJOR} SHLIB_MINOR=${SHLIB_MINOR} -j$(nproc)
+    make SHLIB_VERSION_NUMBER=${SHLIB_VERSION_NUMBER} SHLIB_MAJOR=${SHLIB_MAJOR} SHLIB_MINOR=${SHLIB_MINOR} install_sw
     
     # clean up
 

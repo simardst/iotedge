@@ -1,4 +1,4 @@
-%define iotedge_user root
+%define iotedge_user iotedge
 %define iotedge_group %{iotedge_user}
 %define iotedge_home %{_localstatedir}/lib/iotedge
 %define iotedge_logdir %{_localstatedir}/log/iotedge
@@ -16,6 +16,7 @@ URL:            https://github.com/azure/iotedge
 %{?systemd_requires}
 BuildRequires:  systemd
 Requires(pre):  shadow-utils
+Requires:       libiothsm-std
 Source0:        iotedge-%{version}.tar.gz
 
 %description
@@ -41,6 +42,41 @@ make install DESTDIR=$RPM_BUILD_ROOT unitdir=%{_unitdir}
 rm -rf $RPM_BUILD_ROOT
 
 %pre
+echo "Installing/checking iotedge user"
+# Check for container runtime
+if ! grep -q "^docker:" /etc/group; then
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+    echo ""
+    echo " ERROR: No container runtime detected."
+    echo ""
+    echo " Please install a container runtime and run this install again."
+    echo ""
+    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+
+    exit 1
+fi
+
+# Create iotedge group
+if ! grep -q "^%{iotedge_group}:" /etc/group; then
+    echo "Creating %{iotedge_group}"
+    groupadd -r %{iotedge_group}
+fi
+
+# Create iotedge user
+if ! grep -q "^%{iotedge_user}:" /etc/passwd; then
+    echo "Creating user %{iotedge_user}"
+    useradd -r -g %{iotedge_group} -c "iotedge user" -s /bin/nologin -d %{iotedge_home} %{iotedge_user}
+fi
+
+if grep -q "^docker:" /etc/group; then
+    echo "Adding user %{iotedge_user} to docker group"
+    usermod -a -G docker %{iotedge_user}
+fi
+
+if grep -q "^inet:" /etc/group; then
+    echo "Adding user %{iotedge_user} to inet group"
+    usermod -a -G inet %{iotedge_user}
+fi
 exit 0
 
 %post
