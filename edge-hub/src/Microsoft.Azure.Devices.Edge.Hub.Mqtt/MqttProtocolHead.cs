@@ -11,6 +11,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Mqtt
     using System.Threading.Tasks;
     using DotNetty.Buffers;
     using DotNetty.Codecs.Mqtt;
+    using DotNetty.Common.Internal.Logging;
+    using DotNetty.Handlers.Logging;
     using DotNetty.Handlers.Tls;
     using DotNetty.Transport.Bootstrapping;
     using DotNetty.Transport.Channels;
@@ -127,6 +129,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Mqtt
 
             MessagingBridgeFactoryFunc bridgeFactory = this.mqttConnectionProvider.Connect;
 
+            InternalLoggerFactory.DefaultFactory = Logger.Factory;
+
             var bootstrap = new ServerBootstrap();
             // multithreaded event loop that handles the incoming connection
             IEventLoopGroup parentEventLoopGroup = new MultithreadEventLoopGroup(parentEventLoopCount);
@@ -168,6 +172,8 @@ namespace Microsoft.Azure.Devices.Edge.Hub.Mqtt
                             this.identityProvider,
                             null,
                             bridgeFactory));
+                    
+                    channel.Pipeline.AddLast(new LoggingHandler(DotNetty.Handlers.Logging.LogLevel.DEBUG));
                 }));
 
             var mqttWebSocketListener = new MqttWebSocketListener(
